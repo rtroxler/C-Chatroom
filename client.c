@@ -7,7 +7,7 @@
 
 #define TRUE 1
 #define FALSE 0
-#define PORT 8888
+#define PORT 2020
 
 char* concat(char *s1, char *s2);
 
