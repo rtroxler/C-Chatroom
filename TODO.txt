@@ -1,1 +1,11 @@
 FIX FUCKING CLIENT TO BEHAVE LIKE TELNET, BECAUSE TELNET WORKS
+
+
+ncurses almost finished, just need to set up a box for the top, and have input at bottom.
+
+need to create a window... for the top? and bottom.
+
+then
+scrollok(win, TRUE);
+
+where win is a WINDOW *win.
