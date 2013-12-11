@@ -25,7 +25,6 @@ int main(int argc , char *argv[])
     //set of socket descriptors
     fd_set readfds;
       
-    char *message = "Welcome to the chat room! \r\n";
   
     //initialise all client_socket[] to 0 so not checked
     for (i = 0; i < max_clients; i++) 
@@ -116,11 +115,6 @@ int main(int argc , char *argv[])
             //inform user of socket number - used in send and receive commands
             printf("New connection , socket fd is %d , ip is : %s , port : %d \n" , new_socket , inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
         
-            //send new connection greeting message
-            if( send(new_socket, message, strlen(message), 0) != strlen(message) ) 
-            {
-                perror("send");
-            }
               
             //add new socket to array of sockets
             for (i = 0; i < max_clients; i++) 
@@ -158,6 +152,7 @@ int main(int argc , char *argv[])
                 else
                 {
                     //set the string terminating NULL byte on the end of the data read
+                    printf("%s",buffer);
                     buffer[valread] = '\0';
                     for (j = 0; j < max_clients; j++) 
                     {
