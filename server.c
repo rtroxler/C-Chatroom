@@ -82,7 +82,6 @@ int main(int argc, char *argv[])
             perror("Error on select().");
             exit(1);
         }
-        printf("select() handling activity...\n");
         
         /*run through the existing connections looking for data to be read*/
         for(i = 0; i <= fdmax; i++)
@@ -140,6 +139,9 @@ int main(int argc, char *argv[])
                                   {
                                           if(send(j, buf, nbytes, 0) == -1)
                                                 perror("send() error.");
+                                          printf("Data from socket %d: %s\n", i, buf);
+                                          buf[0] = '\0';
+                                          memset(buf, 0, 1024);
                                   }
                             }
                         }

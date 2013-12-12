@@ -1,23 +1,27 @@
-#include <stdio.h> //printf
-#include <stdlib.h>
-#include <string.h>    //strlen
-#include <sys/socket.h>    //socket
-#include <arpa/inet.h> //inet_addr
-#include <sys/time.h> //FD_SET, FD_ISSET
+#include<stdio.h> //printf
+#include <ncurses.h>
+#include<string.h>    //strlen
+#include<sys/socket.h>    //socket
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/select.h>
+#include<arpa/inet.h> //inet_addr
 
 #define TRUE 1
 #define FALSE 0
-#define PORT 2020
+#define PORT 2020 
 
 char* concat(char *s1, char *s2);
 
 int main(int argc , char *argv[])
 {
-    int sock;
+    int sock, row, col, cur_row, max_fd;
+    char nickname[80];
     struct sockaddr_in server;
-    char nick[30], message[1000], server_reply[2000];
-    char *nickname, send_msg;
+    char msg[1000] , server_reply[2000];
+    char *message, *username;
     fd_set readset;
+    struct timeval tv;
 
     //Create socket
     sock = socket(AF_INET , SOCK_STREAM , 0);
@@ -25,7 +29,6 @@ int main(int argc , char *argv[])
     {
         printf("Could not create socket");
     }
-    puts("Socket created");
 
     server.sin_addr.s_addr = inet_addr("127.0.0.1");
     server.sin_family = AF_INET;
@@ -38,60 +41,74 @@ int main(int argc , char *argv[])
         return 1;
     }
 
-    puts("Connected\n");
-    printf("Enter nickname: ");
-    fgets(nick, sizeof(nick),stdin);
-    nickname = concat(nick, ": ");
-    printf("> ");
+    if (sock > fileno(stdin))
+        max_fd = sock;
 
+    cur_row = 0;
+
+    printf("Enter your username: ");
+    fgets(nickname, sizeof(nickname), stdin);
+
+    username = concat(nickname, ": ");
+
+    initscr();
+    getmaxyx(stdscr, row, col);
+
+    mvprintw(LINES - 1, 0, ">> ");
     //keep communicating with server
-    while(TRUE)
+    for(;;)
     {
+        // set time value to 1 second
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+
         FD_ZERO(&readset);
         FD_SET(fileno(stdin), &readset);
+        FD_SET(sock, &readset);
 
-        //need to add the activity thing to be consistent
-        select(fileno(stdin)+1, &readset, NULL, NULL, NULL);
+        select(max_fd+1, &readset, NULL, NULL, &tv);
 
+        if (FD_ISSET(sock, &readset))
+        {
+            if( recv(sock , server_reply , 2000 , 0) < 0)
+            {
+                puts("recv failed");
+                break;
+            } else {
+                mvprintw(cur_row++, 0, "%s\n", server_reply);
+                memset(server_reply, 0, 2000);
+            }
+        }
         if (FD_ISSET(fileno(stdin), &readset))
         {
-            fgets(message, sizeof(message),stdin);
-            puts(">");
+            mvprintw(LINES - 1, 0, ">> ");
+            getstr(msg);
+            mvprintw(cur_row++, 0, "You: %s", msg);
 
-            send_msg = concat(nickname, message); 
-
-            //Send some data
-            if( send(sock , &send_msg, strlen(&send_msg) , 0) < 0)
+            if( send(sock , msg, strlen(msg) , 0) < 0)
             {
                 puts("Send failed");
                 return 1;
             }
-        }
 
-        //Receive a reply from the server
-        if( recv(sock , server_reply , 2000 , 0) < 0)
-        {
-            puts("recv failed");
-            break;
-        }
-        else {
-            printf("Server Reply: %s\n", server_reply);
-            server_reply[0]='\0'; 
+            move(LINES - 1, 0);
+            clrtoeol();
+
+            //Send some data
         }
 
 
     }
+    endwin();
 
     close(sock);
     return 0;
 }
 
-char* concat(char *s1, char *s2) 
+char* concat(char *s1, char *s2)
 {
-    size_t len1 = strlen(s1);
-    size_t len2 = strlen(s2);
-    char *result = malloc(len1+len2+1);
-    memcpy(result, s1, len1);
-    memcpy(result+len1, s2, len2+1);
+    char *result = malloc(strlen(s1)+strlen(s2)+1);//+1 for the zero-terminator
+    strcpy(result, s1);
+    strcat(result, s2);
     return result;
 }
