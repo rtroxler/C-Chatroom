@@ -1,17 +1,36 @@
-#include<stdio.h> //printf
-#include <ncurses.h>
-#include<string.h>    //strlen
-#include<sys/socket.h>    //socket
+#include <stdio.h> //printf
+#include <ncurses.h> //ncurses
+#include <string.h>    //strlen
+#include <sys/socket.h>    //socket
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/select.h>
-#include<arpa/inet.h> //inet_addr
+#include <sys/select.h> //select
+#include <arpa/inet.h> //inet_addr
+#include <fcntl.h> //fcntl
 
 #define TRUE 1
 #define FALSE 0
 #define PORT 2020 
 
+void clearprompt();
 char* concat(char *s1, char *s2);
+
+void setnonblocking(sock)
+int sock;
+{
+    int opts;
+    opts = fcntl(sock,F_GETFL);
+    if (opts < 0) {
+        perror("fcntl(F_GETFL)");
+        exit(1);
+    }
+    opts = (opts | O_NONBLOCK);
+    if (fcntl(sock,F_SETFL,opts) < 0) {
+        perror("fcntl(F_SETFL)");
+        exit(1);
+    }
+    return;
+}
 
 int main(int argc , char *argv[])
 {
@@ -44,17 +63,17 @@ int main(int argc , char *argv[])
     if (sock > fileno(stdin))
         max_fd = sock;
 
+    setnonblocking(sock);
+
     cur_row = 0;
-
-    printf("Enter your username: ");
-    fgets(nickname, sizeof(nickname), stdin);
-
-    username = concat(nickname, ": ");
 
     initscr();
     getmaxyx(stdscr, row, col);
 
-    mvprintw(LINES - 1, 0, ">> ");
+    mvprintw(LINES - 1, 0, "Enter your name >> ");
+    getstr(nickname);
+    clearprompt();
+
     //keep communicating with server
     for(;;)
     {
@@ -63,8 +82,8 @@ int main(int argc , char *argv[])
         tv.tv_usec = 0;
 
         FD_ZERO(&readset);
-        FD_SET(fileno(stdin), &readset);
         FD_SET(sock, &readset);
+        FD_SET(fileno(stdin), &readset);
 
         select(max_fd+1, &readset, NULL, NULL, &tv);
 
@@ -77,6 +96,7 @@ int main(int argc , char *argv[])
             } else {
                 mvprintw(cur_row++, 0, "%s\n", server_reply);
                 memset(server_reply, 0, 2000);
+                clearprompt();
             }
         }
         if (FD_ISSET(fileno(stdin), &readset))
@@ -90,10 +110,7 @@ int main(int argc , char *argv[])
                 puts("Send failed");
                 return 1;
             }
-
-            move(LINES - 1, 0);
-            clrtoeol();
-
+            clearprompt();
             //Send some data
         }
 
@@ -103,6 +120,13 @@ int main(int argc , char *argv[])
 
     close(sock);
     return 0;
+}
+
+void clearprompt() {
+    move(LINES - 1, 0);
+    clrtoeol();
+    mvprintw(LINES - 1, 0, ">> ");
+    refresh();
 }
 
 char* concat(char *s1, char *s2)
