@@ -11,6 +11,7 @@
 #define TRUE 1
 #define FALSE 0
 #define PORT 2020 
+#define MSG_SIZE 1200
 
 void clearprompt();
 
@@ -34,10 +35,8 @@ int sock;
 int main(int argc , char *argv[])
 {
     int sock, row, col, cur_row, max_fd;
-    char nickname[80];
     struct sockaddr_in server;
-    char msg[1000] , server_reply[2000];
-    char *message, *username;
+    char msg[1000] , server_reply[2000], name[80], message[MSG_SIZE];
     fd_set readset;
     struct timeval tv;
 
@@ -52,6 +51,7 @@ int main(int argc , char *argv[])
     server.sin_family = AF_INET;
     server.sin_port = htons( PORT );
 
+
     //Connect to remote server
     if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
     {
@@ -63,15 +63,17 @@ int main(int argc , char *argv[])
         max_fd = sock;
 
     setnonblocking(sock);
-
     cur_row = 0;
 
+    //start curses
     initscr();
     getmaxyx(stdscr, row, col);
 
+    //get user name
     mvprintw(LINES - 1, 0, "Enter your name >> ");
-    getstr(nickname);
+    getstr(name);
     clearprompt();
+    strtok(name, "\n");
 
     //keep communicating with server
     for(;;)
@@ -86,8 +88,11 @@ int main(int argc , char *argv[])
 
         select(max_fd+1, &readset, NULL, NULL, &tv);
 
+        //activity on socket, incoming msg
         if (FD_ISSET(sock, &readset))
         {
+            //clear extra junk 
+            memset(server_reply, 0, 2000);
             if( recv(sock , server_reply , 2000 , 0) < 0)
             {
                 puts("recv failed");
@@ -98,21 +103,29 @@ int main(int argc , char *argv[])
                 clearprompt();
             }
         }
+        //activity from stdin, writing msg
         if (FD_ISSET(fileno(stdin), &readset))
         {
+            memset(msg, 0, 1000);
             mvprintw(LINES - 1, 0, ">> ");
             getstr(msg);
             mvprintw(cur_row++, 0, "You: %s", msg);
+            strtok(msg, "\n");
 
-            if( send(sock , msg, strlen(msg) , 0) < 0)
+            //format message to include username to send to server
+            strncpy(message, name, MSG_SIZE - 1);
+            message[MSG_SIZE - 1] = '\0';
+            strncat(message, ": ", MSG_SIZE - strlen(message) - 1);
+            strncat(message, msg, MSG_SIZE - strlen(message) - 1);
+
+            //Send message to server
+            if( send(sock , message, strlen(message) , 0) < 0)
             {
                 puts("Send failed");
                 return 1;
             }
             clearprompt();
-            //Send some data
         }
-
 
     }
     endwin();

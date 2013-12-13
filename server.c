@@ -11,28 +11,19 @@
  
 int main(int argc, char *argv[])
 {
-    /* master file descriptor list */
     fd_set master;
-    /* temp file descriptor list for select() */
     fd_set read_fds;
-    /* server address */
     struct sockaddr_in serveraddr;
-    /* client address */
     struct sockaddr_in clientaddr;
-    /* maximum file descriptor number */
     int fdmax;
-    /* listening socket descriptor */
     int listener;
-    /* newly accept()ed socket descriptor */
     int newfd;
-    /* buffer for client data */
-    char buf[1024];
+    char buf[1024], message[2000];
     int nbytes;
-    /* for setsockopt() SO_REUSEADDR, below */
     int yes = 1;
     int addrlen;
     int i, j;
-    /* clear the master and temp sets */
+
     FD_ZERO(&master);
     FD_ZERO(&read_fds);
     
@@ -60,19 +51,15 @@ int main(int argc, char *argv[])
 	exit(1);
     }
     
-    /* listen */
     if(listen(listener, 10) == -1)
     {
 	perror("Server error listening.");
 	exit(1);
     }
     
-    /* add the listener to the master set */
     FD_SET(listener, &master);
-    /* keep track of the biggest file descriptor */
     fdmax = listener; 
     
-    /* loop */
     for(;;)
     {
         read_fds = master;
@@ -83,14 +70,14 @@ int main(int argc, char *argv[])
             exit(1);
         }
         
-        /*run through the existing connections looking for data to be read*/
+        //run through the existing connections looking for data to be read
         for(i = 0; i <= fdmax; i++)
         {
             if(FD_ISSET(i, &read_fds))
             { 
                 if(i == listener)
                 {
-                    /* handle new connections */
+                    // handle new connections
                     addrlen = sizeof(clientaddr);
                     if((newfd = accept(listener, (struct sockaddr *)&clientaddr, &addrlen)) == -1)
                     {
@@ -100,41 +87,41 @@ int main(int argc, char *argv[])
                     {
                         printf("Connection accepted by server...\n");
                     
-                        FD_SET(newfd, &master); /* add to master set */
+                        FD_SET(newfd, &master); // add to master set 
                         if(newfd > fdmax)
-                        { /* keep track of the maximum */
+                        { 
                             fdmax = newfd;
                         }
                         printf("%s: New connection from %s on socket %d\n", argv[0], inet_ntoa(clientaddr.sin_addr), newfd);
+
                     }
                 }
                 else
                 {
-                    /* handle data from a client */
+                    // handle data from a client 
                     if((nbytes = recv(i, buf, sizeof(buf), 0)) <= 0)
                     {
-                        /* got error or connection closed by client */
+                        // got error or connection closed by client 
                         if(nbytes == 0)
-                        /* connection closed */
+                        // connection closed 
                         printf("%s: socket %d hung up\n", argv[0], i);
                         
                         else
                         perror("recv() error.");
                         
-                        /* close it... */
                         close(i);
-                        /* remove from master set */
+                        // remove from master set 
                         FD_CLR(i, &master);
                     }
                     else
                     {
-                        /* we got some data from a client*/
+                        // we got message
                         for(j = 0; j <= fdmax; j++)
                         {
-                            /* send to everyone! */
+                            // send to everyone! 
                             if(FD_ISSET(j, &master))
                             {
-                                  /* except the listener and ourselves */
+                                  // except the listener and ourselves 
                                   if(j != listener && j != i)
                                   {
                                           if(send(j, buf, nbytes, 0) == -1)
